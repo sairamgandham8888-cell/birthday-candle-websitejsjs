@@ -1,1 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎂 Birthday Blast</title>
 
+<style>
+body {
+    margin: 0;
+    font-family: 'Poppins', sans-serif;
+    text-align: center;
+    background: linear-gradient(135deg, #ff758c, #ff7eb3);
+    color: white;
+}
+
+.container {
+    padding: 20px;
+}
+
+h1 {
+    font-size: 30px;
+}
+
+input, button {
+    padding: 12px;
+    margin: 10px;
+    border-radius: 10px;
+    border: none;
+    font-size: 16px;
+}
+
+button {
+    background: #fff;
+    color: #ff4081;
+    font-weight: bold;
+}
+
+.cake {
+    margin-top: 40px;
+}
+
+.candle {
+    width: 10px;
+    height: 60px;
+    background: white;
+    display: inline-block;
+    margin: 5px;
+    position: relative;
+}
+
+.flame {
+    width: 18px;
+    height: 18px;
+    background: orange;
+    border-radius: 50%;
+    position: absolute;
+    top: -20px;
+    left: -4px;
+    box-shadow: 0 0 20px yellow;
+    animation: flicker 0.15s infinite alternate;
+}
+
+@keyframes flicker {
+    from { transform: scale(1); }
+    to { transform: scale(1.3); }
+}
+
+.hidden {
+    display: none;
+}
+
+#message {
+    font-size: 24px;
+    margin-top: 20px;
+}
+
+canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+    <h1>🎂 Blow the Candles</h1>
+
+    <input type="text" id="name" placeholder="Enter Name"><br>
+    <input type="date" id="dob"><br>
+    <button onclick="startApp()">Start Celebration 🎉</button>
+
+    <div class="cake" id="cake"></div>
+
+    <p id="message" class="hidden"></p>
+</div>
+
+<canvas id="confetti"></canvas>
+
+<audio id="music" src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"></audio>
+
+<script>
+let analyser, dataArray;
+let blown = false;
+
+function calculateAge(dob) {
+    let birth = new Date(dob);
+    let today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    let m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+    return age;
+}
+
+function createCandles() {
+    const cake = document.getElementById("cake");
+    cake.innerHTML = "";
+    for (let i = 0; i < 5; i++) {
+        let candle = document.createElement("div");
+        candle.className = "candle";
+        candle.innerHTML = '<div class="flame"></div>';
+        cake.appendChild(candle);
+    }
+}
+
+function startApp() {
+    const name = document.getElementById("name").value;
+    const dob = document.getElementById("dob").value;
+
+    if (!name || !dob) {
+        alert("Enter all details");
+        return;
+    }
+
+    createCandles();
+    document.getElementById("music").play();
+
+    navigator.mediaDevices.getUserMedia({ audio: true })
+    .then(stream => {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioContext.createAnalyser();
+        const mic = audioContext.createMediaStreamSource(stream);
+
+        analyser.fftSize = 256;
+        dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+        mic.connect(analyser);
+        detectBlow(name, dob);
+    })
+    .catch(() => alert("Mic permission needed"));
+}
+
+function detectBlow(name, dob) {
+    analyser.getByteFrequencyData(dataArray);
+    let volume = dataArray.reduce((a, b) => a + b) / dataArray.length;
+
+    if (volume > 70 && !blown) {
+        blown = true;
+
+        document.querySelectorAll(".flame").forEach(f => f.style.display = "none");
+
+        let age = calculateAge(dob);
+
+        let msg = `🎉 Happy Birthday ${name}! 🎂<br>You are ${age} years old! 💖`;
+
+        let box = document.getElementById("message");
+        box.innerHTML = msg;
+        box.classList.remove("hidden");
+
+        startConfetti();
+    }
+
+    requestAnimationFrame(() => detectBlow(name, dob));
+}
+
+// 🎉 Confetti
+function startConfetti() {
+    const canvas = document.getElementById("confetti");
+    const ctx = canvas.getContext("2d");
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    let pieces = [];
+
+    for (let i = 0; i < 100; i++) {
+        pieces.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            dy: Math.random() * 5 + 2,
+            size: Math.random() * 6 + 2
+        });
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "white";
+
+        pieces.forEach(p => {
+            ctx.fillRect(p.x, p.y, p.size, p.size);
+            p.y += p.dy;
+            if (p.y > canvas.height) p.y = 0;
+        });
+
+        requestAnimationFrame(draw);
+    }
+
+    draw();
+}
+</script>
+
+</body>
+</html>
